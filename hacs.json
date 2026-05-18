@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "NESO DFS Bid Monitor",
+        "description": "Monitor the NESO Demand Flexibility Service for accepted Octopus Energy bids and receive notifications.",
+        "data": {
+          "scan_interval": "Poll interval (minutes)",
+          "notify_service": "Notification service (e.g. mobile_app_your_phone)",
+          "notify_on_accepted": "Send notification when accepted bid is found"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to NESO API",
+      "invalid_notify": "Notification service name appears invalid"
+    },
+    "abort": {
+      "already_configured": "NESO DFS Monitor is already configured"
+    }
+  }
+}

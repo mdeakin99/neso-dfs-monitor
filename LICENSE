@@ -1,0 +1,86 @@
+"""Config flow for NESO DFS Monitor."""
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+import voluptuous as vol
+
+from homeassistant import config_entries
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResult
+
+from .const import (
+    CONF_NOTIFY_ON_ACCEPTED,
+    CONF_NOTIFY_SERVICE,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_NOTIFY_ON_ACCEPTED,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    NESO_API_URL,
+    NESO_RESOURCE_ID,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def _test_neso_connection(hass: HomeAssistant) -> bool:
+    """Test that we can reach the NESO API."""
+    import aiohttp
+    sql = f'SELECT * FROM "{NESO_RESOURCE_ID}" LIMIT 1'
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                NESO_API_URL,
+                params={"sql": sql},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                return resp.status == 200
+    except Exception:
+        return False
+
+
+class NesoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle the config flow for NESO DFS Monitor."""
+
+    VERSION = 1
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the initial setup step shown in the UI."""
+        if self._async_current_entries():
+            return self.async_abort(reason="already_configured")
+
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Test NESO API connectivity
+            can_connect = await _test_neso_connection(self.hass)
+            if not can_connect:
+                errors["base"] = "cannot_connect"
+            else:
+                return self.async_create_entry(
+                    title="NESO DFS Bid Monitor",
+                    data=user_input,
+                )
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                ): vol.All(int, vol.Range(min=5, max=120)),
+                vol.Optional(
+                    CONF_NOTIFY_SERVICE, default=""
+                ): str,
+                vol.Optional(
+                    CONF_NOTIFY_ON_ACCEPTED, default=DEFAULT_NOTIFY_ON_ACCEPTED
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+        )
